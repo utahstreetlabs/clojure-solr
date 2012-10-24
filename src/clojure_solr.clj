@@ -1,13 +1,13 @@
 (ns clojure-solr
-  (:import (org.apache.solr.client.solrj.impl CommonsHttpSolrServer)
+  (:import (org.apache.solr.client.solrj.impl HttpSolrServer)
            (org.apache.solr.common SolrInputDocument)
            (org.apache.solr.client.solrj SolrQuery)
            (org.apache.solr.common.params ModifiableSolrParams)))
 
-(declare *connection*)
+(declare ^:dynamic *connection*)
 
 (defn connect [url]
-  (CommonsHttpSolrServer. url))
+  (HttpSolrServer. url))
 
 (defn- make-document [doc]
   (let [sdoc (SolrInputDocument.)]
