@@ -9,20 +9,28 @@
 (defn connect [url]
   (HttpSolrServer. url))
 
-(defn- make-document [doc]
+(defn- make-document [boost-map doc]
   (let [sdoc (SolrInputDocument.)]
     (doseq [[key value] doc]
-      (let [key (cond
-                 (keyword? key) (apply str (rest (str key)))
-                 :default (str key))]
-        (.addField sdoc key value)))
+      (let [key-string (name key)
+            boost (get boost-map key)]
+        (if boost
+          (.addField sdoc key-string value boost)
+          (.addField sdoc key-string value))))
     sdoc))
 
-(defn add-document! [doc]
-  (.add *connection* (make-document doc)))
+(defn add-document!
+  ([doc boost-map]
+   (.add *connection* (make-document boost-map doc)))
+  ([doc]
+   (add-document! doc {})))
 
-(defn add-documents! [coll]
-  (.add *connection* (to-array (map make-document coll))))
+(defn add-documents!
+  ([coll boost-map]
+   (.add *connection* (map (partial make-document boost-map) coll)))
+  ([coll]
+   (add-documents! coll {})))
+
 
 (defn commit! []
   (.commit *connection*))
