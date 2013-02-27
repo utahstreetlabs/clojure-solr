@@ -1,7 +1,7 @@
 (ns clojure-solr
   (:import (org.apache.solr.client.solrj.impl HttpSolrServer)
            (org.apache.solr.common SolrInputDocument)
-           (org.apache.solr.client.solrj SolrQuery)
+           (org.apache.solr.client.solrj SolrQuery SolrRequest$METHOD)
            (org.apache.solr.common.params ModifiableSolrParams)))
 
 (declare ^:dynamic *connection*)
@@ -9,20 +9,28 @@
 (defn connect [url]
   (HttpSolrServer. url))
 
-(defn- make-document [doc]
+(defn- make-document [boost-map doc]
   (let [sdoc (SolrInputDocument.)]
     (doseq [[key value] doc]
-      (let [key (cond
-                 (keyword? key) (apply str (rest (str key)))
-                 :default (str key))]
-        (.addField sdoc key value)))
+      (let [key-string (name key)
+            boost (get boost-map key)]
+        (if boost
+          (.addField sdoc key-string value boost)
+          (.addField sdoc key-string value))))
     sdoc))
 
-(defn add-document! [doc]
-  (.add *connection* (make-document doc)))
+(defn add-document!
+  ([doc boost-map]
+   (.add *connection* (make-document boost-map doc)))
+  ([doc]
+   (add-document! doc {})))
 
-(defn add-documents! [coll]
-  (.add *connection* (to-array (map make-document coll))))
+(defn add-documents!
+  ([coll boost-map]
+   (.add *connection* (map (partial make-document boost-map) coll)))
+  ([coll]
+   (add-documents! coll {})))
+
 
 (defn commit! []
   (.commit *connection*))
@@ -38,11 +46,18 @@
    (coll? p) (into-array String (map str p))
    :else (into-array String [(str p)])))
 
-(defn search [q & flags]
-  (let [query (SolrQuery. q)]
-    (doseq [[key value] (partition 2 flags)]
+(def methods {:get SolrRequest$METHOD/GET, :GET SolrRequest$METHOD/GET
+              :post SolrRequest$METHOD/POST, :POST SolrRequest$METHOD/POST})
+
+(defn- parse-method [method]
+  (get methods method SolrRequest$METHOD/GET))
+
+(defn search [q & {:keys [method] :as flags}]
+  (let [query (SolrQuery. q)
+        method (parse-method method)]
+    (doseq [[key value] (dissoc flags :method)]
       (.setParam query (apply str (rest (str key))) (make-param value)))
-    (map doc-to-hash (.getResults (.query *connection* query)))))
+    (map doc-to-hash (.getResults (.query *connection* query method)))))
 
 (defn delete-id! [id]
   (.deleteById *connection* id))
