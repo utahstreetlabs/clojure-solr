@@ -36,9 +36,7 @@
   (.commit *connection*))
 
 (defn- doc-to-hash [doc]
-  (let [field-names (.getFieldNames doc)
-        value-pairs (map #(list % (.getFieldValue doc %)) field-names)]
-    (apply hash-map (flatten value-pairs))))
+  (clojure.lang.PersistentArrayMap/create doc))
 
 (defn- make-param [p]
   (cond
@@ -46,11 +44,11 @@
    (coll? p) (into-array String (map str p))
    :else (into-array String [(str p)])))
 
-(def methods {:get SolrRequest$METHOD/GET, :GET SolrRequest$METHOD/GET
+(def http-methods {:get SolrRequest$METHOD/GET, :GET SolrRequest$METHOD/GET
               :post SolrRequest$METHOD/POST, :POST SolrRequest$METHOD/POST})
 
 (defn- parse-method [method]
-  (get methods method SolrRequest$METHOD/GET))
+  (get http-methods method SolrRequest$METHOD/GET))
 
 (defn search [q & {:keys [method] :as flags}]
   (let [query (SolrQuery. q)
