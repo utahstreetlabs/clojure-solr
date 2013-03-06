@@ -36,9 +36,7 @@
   (.commit *connection*))
 
 (defn- doc-to-hash [doc]
-  (let [field-names (.getFieldNames doc)
-        value-pairs (map #(list % (.getFieldValue doc %)) field-names)]
-    (apply hash-map (flatten value-pairs))))
+  (clojure.lang.PersistentArrayMap/create doc))
 
 (defn- make-param [p]
   (cond
